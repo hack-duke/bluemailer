@@ -86,7 +86,7 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
 #[tokio::main]
 async fn main() {
     simple_logger::SimpleLogger::new().env().init().unwrap();
-    let _guard = sentry::init(("https://1b28ead56fa7e331950400907c469ec7@o4506832412999680.ingest.sentry.io/4506832415031296", sentry::ClientOptions {
+    let _guard = sentry::init((env::var("SENTRY_DSN").expect("SENTRY_DSN not configured"), sentry::ClientOptions {
         release: sentry::release_name!(),
         ..Default::default()
       }));
