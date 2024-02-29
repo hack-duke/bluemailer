@@ -10,16 +10,7 @@ use lapin::{
 };
 use log;
 
-#[tokio::main]
-async fn main() {
-    simple_logger::SimpleLogger::new().env().init().unwrap();
-    println!("Hello, world!");
-    let smtp_username = env::var("SMTP_USERNAME").unwrap();
-    let smtp_password = env::var("SMTP_PASSWORD").unwrap();
-    let smtp_host = env::var("SMTP_HOST").unwrap();
-    log::info!("Loaded SMTP configuration");
-    let smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
-
+async fn rabbit_mq() {
     let uri = "amqp://localhost:5672";
     let options = ConnectionProperties::default()
         // Use tokio executor and reactor.
@@ -90,5 +81,20 @@ async fn main() {
 
     log::info!("awaiting next steps");
 
+
     std::future::pending::<()>().await;
+}
+
+#[tokio::main]
+async fn main() {
+    simple_logger::SimpleLogger::new().env().init().unwrap();
+    println!("Hello, world!");
+    let smtp_username = env::var("SMTP_USERNAME").unwrap();
+    let smtp_password = env::var("SMTP_PASSWORD").unwrap();
+    let smtp_host = env::var("SMTP_HOST").unwrap();
+    log::info!("Loaded SMTP configuration");
+    let smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
+    mailer::send_test_email(&smtp_mailer).await;
+
+    rabbit_mq().await;
 }
