@@ -2,7 +2,7 @@ use std::{fmt::Debug, string::String};
 
 use lapin::{
     message::DeliveryResult,
-    options::{BasicAckOptions, BasicNackOptions},
+    options::{BasicAckOptions, BasicRejectOptions},
 };
 use lettre::{
     message::header::ContentType, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
@@ -31,10 +31,10 @@ struct GroupNotification {
     datetime_end: String,
 }
 
+#[derive(Debug)]
 enum ErrorTypes {
     ParseFailure,
     ServiceDown,
-    UnknownError,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -74,25 +74,27 @@ pub async fn handle_queue_request(
     };
 
     // Do something with the delivery data (The message payload)
-    log::info!(
-        "Received message",
-    );
+    log::info!("Received message",);
 
     if let Ok(p) = serde_json::from_slice::<BlueRideNotification>(&delivery.data) {
         let e = match p.payload {
             NotificationPurpose::Matched { data } => {
                 dispatch_match(data, p.target_user, &mailer).await
             }
-            NotificationPurpose::Canceled { data, reason } => dispatch_cancel(data, reason).await,
+            NotificationPurpose::Canceled { data, reason } => dispatch_cancel(data, reason, &p.target_user, &mailer).await,
         };
+        if let Err(err) = e {
+            log::error!("Encountered processing error: {:?}", err)
+        }
     } else {
+        log::warn!("Failed to decode JSON: {:?}", String::from_utf8(delivery.data.clone()));
         delivery
-            .nack(BasicNackOptions {
-                multiple: true,
+            .reject(BasicRejectOptions {
                 requeue: false,
             })
             .await
             .expect("Failed to send no ack");
+        return;
     }
 
     delivery
@@ -142,6 +144,31 @@ fn build_match_email(data: GroupNotification, target: &BlueRideUser) -> Result<M
         .unwrap())
 }
 
+fn build_cancel_email(data: GroupNotification, target: &BlueRideUser, reason: String) -> Result<Message, ()> {
+    let to = format!("{} <{}>", target.name, target.email);
+    let from = "BlueRide <blueride@hackduke.org>".to_owned();
+
+    let content = format!(
+        "Dear {},
+    Your match on {} with the following individuals has been CANCELED:
+        {}.
+    Reason: {}",
+        target.name,
+        data.datetime_start,
+        build_list_of_individuals(&data.group),
+        reason
+    );
+
+    let email = Message::builder();
+    Ok(email
+        .from(from.parse().unwrap())
+        .to(to.parse().unwrap())
+        .subject("BlueRide Match CANCELED")
+        .header(ContentType::TEXT_PLAIN)
+        .body(content)
+        .unwrap())
+}
+
 fn build_list_of_individuals(group: &Vec<BlueRideUser>) -> String {
     let mut result = "".to_owned();
     for user in group {
@@ -151,6 +178,16 @@ fn build_list_of_individuals(group: &Vec<BlueRideUser>) -> String {
     result
 }
 
-async fn dispatch_cancel(data: GroupNotification, reason: String) -> Result<(), ErrorTypes> {
+async fn dispatch_cancel(data: GroupNotification, reason: String, target: &BlueRideUser, mailer: &AsyncSmtpTransport<Tokio1Executor>) -> Result<(), ErrorTypes> {
+    if let Ok(message) = build_cancel_email(data, &target, reason) {
+        if mailer.send(message).await.is_err() {
+            log::error!("Failed to send email");
+            return Err(ErrorTypes::ServiceDown);
+        }
+    } else {
+        log::error!("Failed to build message");
+        return Err(ErrorTypes::ParseFailure);
+    }
+    log::info!("Successfully sent email to {}", &target.email);
     Ok(())
 }

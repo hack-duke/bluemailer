@@ -10,7 +10,7 @@
       "APN"
     ],
     "payload": {
-      "type": "Matched",
+      "type": "Canceled",
       "data": {
         "match_id": "123456",
         "group": [
@@ -19,11 +19,17 @@
             "email": "john.doe@example.com",
             "phone_number": "+1 123-456-7890",
             "apn_token": "ANOTHER_APN_TOKEN"
+          },
+          {
+            "name": "James Xu",
+            "email": "james@jamesxu.ca",
+            "phone_number": "+1 984-377-9294",
+            "apn_token": "YOUR_APN_TOKEN_HERE"  
           }
         ],
         "datetime_start": "2024-03-01T10:00:00Z",
         "datetime_end": "2024-03-01T11:00:00Z"
-      }
+      },
+      "reason": "Other user canceled."
     }
   }
-  
