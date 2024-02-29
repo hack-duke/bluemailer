@@ -99,7 +99,10 @@ pub async fn handle_queue_request(
                 ErrorTypes::ServiceDown => {
                     tokio::time::sleep(Duration::from_secs(10)).await;
                     delivery
-                        .nack(BasicNackOptions { requeue: true, multiple: true })
+                        .nack(BasicNackOptions {
+                            requeue: true,
+                            multiple: true,
+                        })
                         .await
                         .expect("Failed to send reject");
                 }
