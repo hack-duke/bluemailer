@@ -9,21 +9,9 @@ use lapin::{
     Connection, ConnectionProperties,
 };
 use log;
-
-// fn retry_rabbitmq() {
-//     std::thread::sleep(std::time::Duration::from_millis(2000));
-//     log::info!("Reconnecting to rabbitmq");
-//     try_rabbitmq();
-// }
-
-// async fn try_rabbitmq() {
-//     // tokio::spawn(async move {
-//     if let Err(err) = rabbit_mq().await {
-//         log::error!("Error: {}", err);
-//         retry_rabbitmq();
-//     }
-//     // });
-// }
+use sentry::Transaction;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::prelude::*;
 
 async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
     let uri = "amqp://localhost:5672";
@@ -56,26 +44,17 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
         .await?;
 
     consumer.set_delegate(move |delivery: DeliveryResult| async move {
+        let tx_ctx =
+            sentry::TransactionContext::new("handle_notification_queue", "process request");
+        let transaction = sentry::start_transaction(tx_ctx);
         let smtp_username = env::var("SMTP_USERNAME").expect("SMTP_USERNAME not in env");
         let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD not in env");
         let smtp_host = env::var("SMTP_HOST").expect("SMTP_HOST not in env");
         log::info!("Loaded SMTP configuration");
         let smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
-        api::handle_queue_request(delivery, smtp_mailer.mailer).await;
+        api::handle_queue_request(delivery, smtp_mailer.mailer, &transaction).await;
+        transaction.finish();
     });
-
-    // channel
-    //     .basic_publish(
-    //         "",
-    //         "notifications.blueride",
-    //         BasicPublishOptions::default(),
-    //         b"Hello world!",
-    //         BasicProperties::default(),
-    //     )
-    //     .await
-    //     .unwrap()
-    //     .await
-    //     .unwrap();
 
     log::info!("Awaiting next steps");
 
@@ -85,11 +64,21 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() {
-    simple_logger::SimpleLogger::new().env().init().unwrap();
-    let _guard = sentry::init((env::var("SENTRY_DSN").expect("SENTRY_DSN not configured"), sentry::ClientOptions {
-        release: sentry::release_name!(),
-        ..Default::default()
-      }));
+    // simple_logger::SimpleLogger::new().env().init().unwrap();
+    let filter = LevelFilter::DEBUG;
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(sentry_tracing::layer())
+        .with(filter)
+        .init();
+    let _guard = sentry::init((
+        env::var("SENTRY_DSN").expect("SENTRY_DSN not configured"),
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            traces_sample_rate: 1.0,
+            ..Default::default()
+        },
+    ));
     let smtp_username = env::var("SMTP_USERNAME").expect("SMTP_USERNAME not in env");
     let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD not in env");
     let smtp_host = env::var("SMTP_HOST").expect("SMTP_HOST not in env");
