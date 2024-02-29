@@ -75,8 +75,7 @@ pub async fn handle_queue_request(
 
     // Do something with the delivery data (The message payload)
     log::info!(
-        "logged data {:?}",
-        String::from_utf8(delivery.data.clone()).unwrap()
+        "Received message",
     );
 
     if let Ok(p) = serde_json::from_slice::<BlueRideNotification>(&delivery.data) {
@@ -107,7 +106,7 @@ async fn dispatch_match(
     target: BlueRideUser,
     mailer: &AsyncSmtpTransport<Tokio1Executor>,
 ) -> Result<(), ErrorTypes> {
-    if let Ok(message) = build_match_email(data, target) {
+    if let Ok(message) = build_match_email(data, &target) {
         if mailer.send(message).await.is_err() {
             log::error!("Failed to send email");
             return Err(ErrorTypes::ServiceDown);
@@ -116,11 +115,12 @@ async fn dispatch_match(
         log::error!("Failed to build message");
         return Err(ErrorTypes::ParseFailure);
     }
+    log::info!("Successfully sent email to {}", &target.email);
     Ok(())
 }
 
-fn build_match_email(data: GroupNotification, target: BlueRideUser) -> Result<Message, ()> {
-    let to = format!("{}, <{}>", target.name, target.email);
+fn build_match_email(data: GroupNotification, target: &BlueRideUser) -> Result<Message, ()> {
+    let to = format!("{} <{}>", target.name, target.email);
     let from = "BlueRide <blueride@hackduke.org>".to_owned();
 
     let content = format!(
