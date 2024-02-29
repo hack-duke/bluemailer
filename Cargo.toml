@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lapin = "2.3.1"
 lettre = { version = "0.11.4", features = [
     "builder",
     "pool",
@@ -16,3 +17,5 @@ lettre = { version = "0.11.4", features = [
 log = "0.4.21"
 simple_logger = "4.3.3"
 tokio = { version = "1", features = ["full"] }
+tokio-executor-trait = "2.1.1"
+tokio-reactor-trait = "1.1.0"
