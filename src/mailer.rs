@@ -1,12 +1,11 @@
 use lettre::message::header::ContentType;
-use lettre::transport::smtp::authentication::Credentials;
+use lettre::transport::smtp::{authentication::Credentials, PoolConfig};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use std::error::Error;
 use std::string::String;
 
 pub struct Mailer {
-    creds: Credentials,
-    mailer: AsyncSmtpTransport<Tokio1Executor>,
+    pub mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 
 impl Mailer {
@@ -14,17 +13,16 @@ impl Mailer {
         let creds = Credentials::new(username, password);
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&host)
             .unwrap()
-            .credentials(creds.clone())
+            .credentials(creds)
+            .pool_config(PoolConfig::new())
             .build();
-        Mailer { creds, mailer }
+        Mailer { mailer }
     }
 
-    pub async fn send_email(&self, message: Message) -> Result<(), String>{
+    pub async fn send_email(&self, message: Message) -> Result<(), String> {
         match self.mailer.send(message).await {
-            Ok(_) => {
-                Ok(())
-            }
-            Err(e) => Err(e.to_string())
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.to_string()),
         }
     }
 }
