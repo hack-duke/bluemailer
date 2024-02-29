@@ -1,0 +1,18 @@
+[package]
+name = "bluemailer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lettre = { version = "0.11.4", features = [
+    "builder",
+    "pool",
+    "smtp-transport",
+    "tokio1-native-tls",
+    "tokio1",
+] }
+log = "0.4.21"
+simple_logger = "4.3.3"
+tokio = { version = "1", features = ["full"] }
