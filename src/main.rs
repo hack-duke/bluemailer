@@ -48,7 +48,7 @@ async fn rabbit_mq() {
             Ok(None) => return,
             // Carries the error and is always followed by Ok(None)
             Err(error) => {
-                dbg!("Failed to consume queue message {}", error);
+                log::error!("Failed to consume queue message {}", error);
                 return;
             }
         };
@@ -94,7 +94,7 @@ async fn main() {
     let smtp_host = env::var("SMTP_HOST").unwrap();
     log::info!("Loaded SMTP configuration");
     let smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
-    mailer::send_test_email(&smtp_mailer).await;
+    // mailer::send_test_email(&smtp_mailer).await;
 
     rabbit_mq().await;
 }
