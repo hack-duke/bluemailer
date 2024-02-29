@@ -86,6 +86,10 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
 #[tokio::main]
 async fn main() {
     simple_logger::SimpleLogger::new().env().init().unwrap();
+    let _guard = sentry::init(("https://1b28ead56fa7e331950400907c469ec7@o4506832412999680.ingest.sentry.io/4506832415031296", sentry::ClientOptions {
+        release: sentry::release_name!(),
+        ..Default::default()
+      }));
     let smtp_username = env::var("SMTP_USERNAME").expect("SMTP_USERNAME not in env");
     let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD not in env");
     let smtp_host = env::var("SMTP_HOST").expect("SMTP_HOST not in env");
