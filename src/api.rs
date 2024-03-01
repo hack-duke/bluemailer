@@ -1,7 +1,7 @@
 use std::{fmt::Debug, string::String};
 
 use lapin::{
-    message::DeliveryResult,
+    message::{Delivery, DeliveryResult},
     options::{BasicAckOptions, BasicNackOptions, BasicRejectOptions},
 };
 use lettre::{
@@ -61,6 +61,17 @@ struct BlueRideNotification {
     payload: NotificationPurpose,
 }
 
+async fn delay(delivery: &Delivery) {
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    delivery
+        .nack(BasicNackOptions {
+            requeue: true,
+            multiple: true,
+        })
+        .await
+        .expect("Failed to send reject");
+}
+
 #[tracing::instrument(skip_all)]
 pub async fn handle_queue_request(
     delivery: DeliveryResult,
@@ -90,7 +101,7 @@ pub async fn handle_queue_request(
                 ..Default::default()
             }));
         });
-        
+
         let e = match p.payload {
             NotificationPurpose::Matched { data } => {
                 dispatch_match(data, p.target_user, &mailer).await
@@ -112,14 +123,7 @@ pub async fn handle_queue_request(
                 ErrorTypes::ServiceDown => {
                     transaction.set_status(sentry::protocol::SpanStatus::InternalError);
                     let s = transaction.start_child("waiting", "10s delay before requeue");
-                    tokio::time::sleep(Duration::from_secs(10)).await;
-                    delivery
-                        .nack(BasicNackOptions {
-                            requeue: true,
-                            multiple: true,
-                        })
-                        .await
-                        .expect("Failed to send reject");
+                    delay(&delivery).await;
                     s.finish();
                 }
             }
