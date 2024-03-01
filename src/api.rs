@@ -61,6 +61,7 @@ struct BlueRideNotification {
     payload: NotificationPurpose,
 }
 
+#[tracing::instrument(skip_all)]
 async fn delay(delivery: &Delivery) {
     tokio::time::sleep(Duration::from_secs(10)).await;
     delivery
