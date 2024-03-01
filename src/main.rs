@@ -1,4 +1,4 @@
-mod api;
+mod tasks;
 mod mailer;
 use std::{env, error::Error};
 
@@ -12,6 +12,7 @@ use log;
 use std::sync::Arc;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
+use crate::tasks::api::handle_queue_request;
 
 async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
     let uri = "amqp://localhost:5672";
@@ -60,7 +61,7 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
                 sentry::TransactionContext::new("handle_notification_queue", "process request");
             let transaction = sentry::start_transaction(tx_ctx);
             // let mailer = &smtp_mailer.mailer;
-            api::handle_queue_request(delivery, s.clone(), &transaction).await;
+            handle_queue_request(delivery, s.clone(), &transaction).await;
             transaction.finish();
         }
     });

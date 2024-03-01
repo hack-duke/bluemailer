@@ -12,16 +12,20 @@ use serde::{Deserialize, Serialize};
 use tokio::time::Duration;
 use tracing::{event, Level};
 
+use crate::tasks::auth_token::dispatch_token;
+
+use super::auth_token::AuthNotification;
+
 #[derive(Serialize, Deserialize, Debug)]
-struct BlueRideUser {
-    name: String,
-    email: String,
-    phone_number: String,
-    apn_token: String,
+pub(crate) struct BlueRideUser {
+    pub(crate) name: String,
+    pub(crate) email: String,
+    pub(crate) phone_number: String,
+    pub(crate) apn_token: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-enum NotificationChannel {
+pub(crate) enum NotificationChannel {
     Email,
     APN,
 }
@@ -35,7 +39,7 @@ struct GroupNotification {
 }
 
 #[derive(Debug)]
-enum ErrorTypes {
+pub(crate) enum ErrorTypes {
     ParseFailure,
     ServiceDown,
     EmailParseFailure,
@@ -52,6 +56,10 @@ enum NotificationPurpose {
         data: GroupNotification,
         reason: String,
     },
+
+    AuthToken {
+        data: AuthNotification
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -109,6 +117,9 @@ pub async fn handle_queue_request(
             }
             NotificationPurpose::Canceled { data, reason } => {
                 dispatch_cancel(data, reason, &p.target_user, &mailer).await
+            }
+            NotificationPurpose::AuthToken { data } => {
+                dispatch_token(data, &p.target_user, &mailer).await
             }
         };
         if let Err(err) = e {
