@@ -61,7 +61,7 @@ struct BlueRideNotification {
     payload: NotificationPurpose,
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn handle_queue_request(
     delivery: DeliveryResult,
     mailer: AsyncSmtpTransport<Tokio1Executor>,
@@ -84,6 +84,13 @@ pub async fn handle_queue_request(
     log::info!("Received message",);
 
     if let Ok(p) = serde_json::from_slice::<BlueRideNotification>(&delivery.data) {
+        sentry::configure_scope(|scope| {
+            scope.set_user(Some(sentry::User {
+                email: Some(p.target_user.email.clone()),
+                ..Default::default()
+            }));
+        });
+        
         let e = match p.payload {
             NotificationPurpose::Matched { data } => {
                 dispatch_match(data, p.target_user, &mailer).await
@@ -209,6 +216,7 @@ fn build_cancel_email(
         .unwrap())
 }
 
+#[tracing::instrument]
 fn build_list_of_individuals(group: &Vec<BlueRideUser>) -> String {
     let mut result = "".to_owned();
     for user in group {
