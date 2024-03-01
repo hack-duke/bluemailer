@@ -111,6 +111,7 @@ pub async fn handle_queue_request(
                 }
                 ErrorTypes::ServiceDown => {
                     transaction.set_status(sentry::protocol::SpanStatus::InternalError);
+                    let s = transaction.start_child("waiting", "10s delay before requeue");
                     tokio::time::sleep(Duration::from_secs(10)).await;
                     delivery
                         .nack(BasicNackOptions {
@@ -119,6 +120,7 @@ pub async fn handle_queue_request(
                         })
                         .await
                         .expect("Failed to send reject");
+                    s.finish();
                 }
             }
             return;
