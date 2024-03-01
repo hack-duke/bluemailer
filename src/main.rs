@@ -9,6 +9,7 @@ use lapin::{
     Connection, ConnectionProperties,
 };
 use log;
+use std::sync::Arc;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
 
@@ -42,17 +43,26 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
         )
         .await?;
 
-    consumer.set_delegate(move |delivery: DeliveryResult| async move {
-        let tx_ctx =
-            sentry::TransactionContext::new("handle_notification_queue", "process request");
-        let transaction = sentry::start_transaction(tx_ctx);
-        let smtp_username = env::var("SMTP_USERNAME").expect("SMTP_USERNAME not in env");
-        let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD not in env");
-        let smtp_host = env::var("SMTP_HOST").expect("SMTP_HOST not in env");
-        log::info!("Loaded SMTP configuration");
-        let smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
-        api::handle_queue_request(delivery, smtp_mailer.mailer, &transaction).await;
-        transaction.finish();
+    let smtp_username = env::var("SMTP_USERNAME").expect("SMTP_USERNAME not in env");
+    let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD not in env");
+    let smtp_host = env::var("SMTP_HOST").expect("SMTP_HOST not in env");
+    log::info!("Loaded SMTP configuration");
+    let smtp_mailer = Arc::from(mailer::create_mailer(
+        smtp_username.clone(),
+        smtp_password.clone(),
+        smtp_host.clone(),
+    ));
+
+    consumer.set_delegate(move |delivery: DeliveryResult| {
+        let s = Arc::clone(&smtp_mailer);
+        async move {
+            let tx_ctx =
+                sentry::TransactionContext::new("handle_notification_queue", "process request");
+            let transaction = sentry::start_transaction(tx_ctx);
+            // let mailer = &smtp_mailer.mailer;
+            api::handle_queue_request(delivery, s.clone(), &transaction).await;
+            transaction.finish();
+        }
     });
 
     log::info!("Awaiting next steps");

@@ -1,4 +1,4 @@
-use std::{fmt::Debug, string::String};
+use std::{fmt::Debug, string::String, sync::Arc};
 
 use lapin::{
     message::{Delivery, DeliveryResult},
@@ -76,7 +76,7 @@ async fn delay(delivery: &Delivery) {
 #[tracing::instrument(skip_all)]
 pub async fn handle_queue_request(
     delivery: DeliveryResult,
-    mailer: AsyncSmtpTransport<Tokio1Executor>,
+    mailer: Arc<AsyncSmtpTransport<Tokio1Executor>>,
     transaction: &Transaction,
 ) {
     let delivery = match delivery {

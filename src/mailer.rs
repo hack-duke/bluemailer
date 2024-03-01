@@ -7,6 +7,20 @@ pub struct Mailer {
     pub mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 
+pub fn create_mailer(
+    username: String,
+    password: String,
+    host: String,
+) -> AsyncSmtpTransport<Tokio1Executor> {
+    let creds = Credentials::new(username, password);
+    let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&host)
+        .unwrap()
+        .credentials(creds)
+        .pool_config(PoolConfig::new())
+        .build();
+    mailer
+}
+
 impl Mailer {
     pub fn create_mailer(username: String, password: String, host: String) -> Mailer {
         let creds = Credentials::new(username, password);
