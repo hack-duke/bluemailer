@@ -1,23 +1,8 @@
 ####################################################################################################
-## Chef
-####################################################################################################
-FROM rust:latest AS chef
-RUN cargo install cargo-chef 
-
-####################################################################################################
-## Planner
-####################################################################################################
-FROM chef AS planner
-WORKDIR /bluemailer
-COPY . .
-RUN cargo chef prepare  --recipe-path recipe.json
-
-
-####################################################################################################
 ## Builder
 ####################################################################################################
-FROM chef AS builder
-WORKDIR /bluemailer
+FROM rust:latest AS builder
+
 RUN update-ca-certificates
 
 # Create appuser
@@ -34,10 +19,9 @@ RUN update-ca-certificates
 #     "${USER}"
 
 
+WORKDIR /bluemailer
 
-COPY --from=planner /bluemailer/recipe.json recipe.json
-# Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --recipe-path recipe.json
+COPY ./ .
 
 # We no longer need to use the x86_64-unknown-linux-musl target
 RUN cargo build --release
