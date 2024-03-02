@@ -12,8 +12,6 @@ use serde::{Deserialize, Serialize};
 use tokio::time::Duration;
 use tracing::{event, Level};
 
-use crate::tasks::auth_token::dispatch_token;
-
 use super::auth_token::AuthNotification;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -69,6 +67,11 @@ struct BlueRideNotification {
     payload: NotificationPurpose,
 }
 
+pub(crate) trait EmailPayload {
+    fn build_email(&self, target: &BlueRideUser) -> Result<Message, ()>;
+    async fn dispatch_email(&self, target: &BlueRideUser, mailer: &AsyncSmtpTransport<Tokio1Executor>)  -> Result<(), ErrorTypes>;
+}
+
 #[tracing::instrument(skip_all)]
 async fn delay(delivery: &Delivery) {
     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -119,7 +122,7 @@ pub async fn handle_queue_request(
                 dispatch_cancel(data, reason, &p.target_user, &mailer).await
             }
             NotificationPurpose::AuthToken { data } => {
-                dispatch_token(data, &p.target_user, &mailer).await
+                data.dispatch_email(&p.target_user, &mailer).await
             }
         };
         if let Err(err) = e {
