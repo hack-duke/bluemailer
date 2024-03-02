@@ -61,7 +61,7 @@ async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
                 sentry::TransactionContext::new("handle_notification_queue", "process request");
             let transaction = sentry::start_transaction(tx_ctx);
             // let mailer = &smtp_mailer.mailer;
-            handle_queue_request(delivery, s.clone(), &transaction).await;
+            handle_queue_request(delivery, Arc::clone(&s), &transaction).await;
             transaction.finish();
         }
     });
