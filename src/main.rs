@@ -14,8 +14,7 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
 use crate::tasks::api::handle_queue_request;
 
-async fn rabbit_mq() -> Result<(), Box<dyn Error>> {
-    let uri = "amqp://localhost:5672";
+async fn rabbit_mq(uri: &str) -> Result<(), Box<dyn Error>> {
     let options = ConnectionProperties::default()
         // Use tokio executor and reactor.
         // At the moment the reactor is only available for unix.
@@ -96,9 +95,10 @@ async fn main() {
     log::info!("Loaded SMTP configuration");
     let _smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
     // mailer::send_test_email(&smtp_mailer).await;
-    if let Err(err) = rabbit_mq().await {
+    let uri = env::var("RABBITMQ_URI").unwrap_or("amqp://localhost:5672".to_string());
+    if let Err(err) = rabbit_mq(&uri).await {
         log::error!("Error: {}", err);
-        let _ = rabbit_mq().await;
+        let _ = rabbit_mq(&uri).await;
     }
     // rabbit_mq().await;
 }
