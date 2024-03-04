@@ -98,7 +98,7 @@ async fn main() {
     // mailer::send_test_email(&smtp_mailer).await;
     let uri = env::var("RABBITMQ_URI").unwrap_or("amqp://localhost:5672".to_string());
     if let Err(err) = rabbit_mq(&uri).await {
-        log::error!("Error: {}", err);
+        log::error!("RabbitMQ Error: {}", err);
         let _ = rabbit_mq(&uri).await;
     }
     // rabbit_mq().await;
