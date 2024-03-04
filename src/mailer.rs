@@ -16,7 +16,6 @@ pub fn create_mailer(
     let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&host)
         .unwrap()
         .credentials(creds)
-        .port(2525)
         .pool_config(PoolConfig::new())
         .build();
     mailer
