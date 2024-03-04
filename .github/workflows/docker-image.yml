@@ -27,3 +27,11 @@ jobs:
                   file: ./Dockerfile
                   push: true
                   tags: hackduke/blueride-mailer:latest
+            - name: Build and push Docker image for arm64
+                uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+                with:
+                    context: .
+                    file: ./Dockerfile
+                    push: true
+                    tags: hackduke/blueride-mailer:latest
+                    platforms: linux/arm64
