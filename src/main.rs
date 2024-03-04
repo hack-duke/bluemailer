@@ -25,11 +25,12 @@ async fn rabbit_mq(uri: &str) -> Result<(), Box<dyn Error>> {
     let channel = connection.create_channel().await?;
 
     channel.basic_qos(10, BasicQosOptions::default()).await?;
-
+    let mut options = QueueDeclareOptions::default();
+    options.durable = true;
     let _queue = channel
         .queue_declare(
             "notification_queue",
-            QueueDeclareOptions::default(),
+            options,
             FieldTable::default(),
         )
         .await?;
