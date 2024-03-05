@@ -1,5 +1,6 @@
 use std::{fmt::Debug, string::String, sync::Arc};
 
+use chrono::{DateTime, Utc};
 use lapin::{
     message::{Delivery, DeliveryResult},
     options::{BasicAckOptions, BasicNackOptions, BasicRejectOptions},
@@ -32,8 +33,8 @@ pub(crate) enum NotificationChannel {
 struct GroupNotification {
     match_id: String,
     group: Vec<BlueRideUser>,
-    datetime_start: String,
-    datetime_end: String,
+    datetime_start: DateTime<Utc>,
+    datetime_end: DateTime<Utc>,
 }
 
 #[derive(Debug)]
@@ -188,12 +189,18 @@ fn build_match_email(data: GroupNotification, target: &BlueRideUser) -> Result<M
     let to = format!("{} <{}>", target.name, target.email);
     let from = "BlueRide <blueride@hackduke.org>".to_owned();
 
+    let eastern_time = data.datetime_start.with_timezone(&chrono_tz::US::Eastern);
+    
+    // Format the Eastern Time
+    let formatted_time = eastern_time.format("%d/%m/%Y %H:%M:%S%P %Z").to_string();
+
+
     let content = format!(
         "Dear {},
     You have been matched for a ride on {} with the following individuals:
         {}",
         target.name,
-        data.datetime_start,
+        formatted_time,
         build_list_of_individuals(&data.group)
     );
 
@@ -216,13 +223,18 @@ fn build_cancel_email(
     let to = format!("{} <{}>", target.name, target.email);
     let from = "BlueRide <blueride@hackduke.org>".to_owned();
 
+    let eastern_time = data.datetime_start.with_timezone(&chrono_tz::US::Eastern);
+    
+    // Format the Eastern Time
+    let formatted_time = eastern_time.format("%d/%m/%Y %H:%M:%S%P %Z").to_string();
+
     let content = format!(
         "Dear {},
     Your match on {} with the following individuals has been CANCELED:
         {}.
     Reason: {}",
         target.name,
-        data.datetime_start,
+        formatted_time,
         build_list_of_individuals(&data.group),
         reason
     );

@@ -17,6 +17,11 @@ impl EmailPayload for AuthNotification {
         let to = format!("{} <{}>", target.name, target.email);
         let from = "BlueRide <blueride@hackduke.org>".to_owned();
 
+        let eastern_time = self.eov.with_timezone(&chrono_tz::US::Eastern);
+    
+        // Format the Eastern Time
+        let formatted_time = eastern_time.format("%d/%m/%Y %H:%M:%S%P %Z").to_string();
+
         let content = format!(
             "Dear {},
         
@@ -26,7 +31,7 @@ impl EmailPayload for AuthNotification {
         BlueRide",
             target.name,
             self.token,
-            self.eov
+            formatted_time
         );
 
         let email = Message::builder();

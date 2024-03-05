@@ -26,3 +26,4 @@ tracing = "0.1"
 tracing-subscriber = "0.3.18"
 sentry-tracing = "0.32.2"
 chrono = {version = "0.4.34", features = ["serde"]}
+chrono-tz = "0.8.6"
