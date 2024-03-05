@@ -79,7 +79,7 @@ async fn delay(delivery: &Delivery) {
     delivery
         .nack(BasicNackOptions {
             requeue: true,
-            multiple: true,
+            multiple: false,
         })
         .await
         .expect("Failed to send reject");
@@ -160,7 +160,7 @@ pub async fn handle_queue_request(
     }
     transaction.set_status(sentry::protocol::SpanStatus::Ok);
     delivery
-        .ack(BasicAckOptions { multiple: true })
+        .ack(BasicAckOptions { multiple: false })
         .await
         .expect("Failed to ack send_webhook_event message");
 }
