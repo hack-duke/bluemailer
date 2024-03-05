@@ -1,6 +1,6 @@
 mod tasks;
 mod mailer;
-use std::{env, error::Error};
+use std::{env, error::Error, time::Duration};
 
 use lapin::{
     message::DeliveryResult,
@@ -10,6 +10,7 @@ use lapin::{
 };
 use log;
 use std::sync::Arc;
+use std::process::exit;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
 use crate::tasks::api::handle_queue_request;
@@ -23,6 +24,11 @@ async fn rabbit_mq(uri: &str) -> Result<(), Box<dyn Error>> {
 
     let connection = Connection::connect(uri, options).await?;
     let channel = connection.create_channel().await?;
+
+    connection.on_error(|err| {
+        log::error!("RMQ Connection Error: {}", err);
+        exit(1);
+    });
 
     channel.basic_qos(10, BasicQosOptions::default()).await?;
     let mut options = QueueDeclareOptions::default();
@@ -97,7 +103,8 @@ async fn main() {
     let _smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
     // mailer::send_test_email(&smtp_mailer).await;
     let uri = env::var("RABBITMQ_URI").unwrap_or("amqp://localhost:5672".to_string());
-    if let Err(err) = rabbit_mq(&uri).await {
+    while let Err(err) = rabbit_mq(&uri).await {
+        tokio::time::sleep(Duration::from_secs(10)).await;
         log::error!("RabbitMQ Error: {}", err);
         let _ = rabbit_mq(&uri).await;
     }
