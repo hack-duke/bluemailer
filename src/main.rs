@@ -3,10 +3,7 @@ mod mailer;
 use std::{env, error::Error, time::Duration};
 
 use lapin::{
-    message::DeliveryResult,
-    options::{BasicConsumeOptions, BasicQosOptions, QueueDeclareOptions},
-    types::FieldTable,
-    Connection, ConnectionProperties,
+    message::DeliveryResult, options::{BasicConsumeOptions, BasicQosOptions, QueueDeclareOptions}, types::FieldTable, Connection, ConnectionProperties
 };
 use log;
 use std::sync::Arc;
@@ -80,13 +77,12 @@ async fn rabbit_mq(uri: &str) -> Result<(), Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() {
-    // simple_logger::SimpleLogger::new().env().init().unwrap();
-    let filter = LevelFilter::DEBUG;
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .with(sentry_tracing::layer())
-        .with(filter)
-        .init();
+    let mut filter = LevelFilter::DEBUG;
+    if cfg!(debug_assertions) {
+        filter = LevelFilter::DEBUG;
+    }
+
+    
     let _guard = sentry::init((
         env::var("SENTRY_DSN").expect("SENTRY_DSN not configured"),
         sentry::ClientOptions {
@@ -96,17 +92,16 @@ async fn main() {
         },
     ));
 
-    let smtp_username = env::var("SMTP_USERNAME").expect("SMTP_USERNAME not in env");
-    let smtp_password = env::var("SMTP_PASSWORD").expect("SMTP_PASSWORD not in env");
-    let smtp_host = env::var("SMTP_HOST").expect("SMTP_HOST not in env");
-    log::info!("Loaded SMTP configuration");
-    let _smtp_mailer = mailer::Mailer::create_mailer(smtp_username, smtp_password, smtp_host);
-    // mailer::send_test_email(&smtp_mailer).await;
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(sentry_tracing::layer())
+        .with(filter)
+        .init();
+
     let uri = env::var("RABBITMQ_URI").unwrap_or("amqp://localhost:5672".to_string());
     while let Err(err) = rabbit_mq(&uri).await {
         tokio::time::sleep(Duration::from_secs(10)).await;
         log::error!("RabbitMQ Error: {}", err);
         let _ = rabbit_mq(&uri).await;
     }
-    // rabbit_mq().await;
 }

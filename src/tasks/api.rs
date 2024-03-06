@@ -66,6 +66,7 @@ struct BlueRideNotification {
     target_user: BlueRideUser,
     channels: Vec<NotificationChannel>,
     payload: NotificationPurpose,
+    trace_id: Option<String>
 }
 
 pub(crate) trait EmailPayload {
@@ -109,6 +110,7 @@ pub async fn handle_queue_request(
 
     if let Ok(p) = serde_json::from_slice::<BlueRideNotification>(&delivery.data) {
         sentry::configure_scope(|scope| {
+            scope.set_transaction(p.trace_id.as_deref());
             scope.set_user(Some(sentry::User {
                 email: Some(p.target_user.email.clone()),
                 ..Default::default()
@@ -189,18 +191,27 @@ fn build_match_email(data: GroupNotification, target: &BlueRideUser) -> Result<M
     let to = format!("{} <{}>", target.name, target.email);
     let from = "BlueRide <blueride@hackduke.org>".to_owned();
 
-    let eastern_time = data.datetime_start.with_timezone(&chrono_tz::US::Eastern);
+    let et_start = data.datetime_start.with_timezone(&chrono_tz::US::Eastern);
+    let et_end = data.datetime_end.with_timezone(&chrono_tz::US::Eastern);
     
     // Format the Eastern Time
-    let formatted_time = eastern_time.format("%d/%m/%Y %H:%M:%S%P %Z").to_string();
+    let ft_start = et_start.format("%d/%m/%Y %I:%M%P %Z").to_string();
+    let ft_end = et_end.format("%d/%m/%Y %I:%M%P %Z").to_string();
 
 
     let content = format!(
         "Dear {},
-    You have been matched for a ride on {} with the following individuals:
-        {}",
+    You have been matched for a ride in a time range from {} to {} with the following individuals:
+
+        {}
+    
+    Please check the app for more details. You may have received an earlier email. This email is to indicate one/more persons have now joined the group.
+    
+    Best,
+    BlueRide",
         target.name,
-        formatted_time,
+        ft_start,
+        ft_end,
         build_list_of_individuals(&data.group)
     );
 
@@ -223,18 +234,26 @@ fn build_cancel_email(
     let to = format!("{} <{}>", target.name, target.email);
     let from = "BlueRide <blueride@hackduke.org>".to_owned();
 
-    let eastern_time = data.datetime_start.with_timezone(&chrono_tz::US::Eastern);
+    let et_start = data.datetime_start.with_timezone(&chrono_tz::US::Eastern);
+    let et_end = data.datetime_end.with_timezone(&chrono_tz::US::Eastern);
     
     // Format the Eastern Time
-    let formatted_time = eastern_time.format("%d/%m/%Y %H:%M:%S%P %Z").to_string();
+    let ft_start = et_start.format("%d/%m/%Y %I:%M%P %Z").to_string();
+    let ft_end = et_end.format("%d/%m/%Y %I:%M%P %Z").to_string();
 
     let content = format!(
         "Dear {},
-    Your match on {} with the following individuals has been CANCELED:
-        {}.
-    Reason: {}",
+    Your matched ride in the time range from {} to {} with the following individuals has changed due to a user leaving:
+
+        {}
+
+    Reason: {}
+    
+    Best,
+    BlueRide",
         target.name,
-        formatted_time,
+        ft_start,
+        ft_end,
         build_list_of_individuals(&data.group),
         reason
     );
@@ -243,7 +262,7 @@ fn build_cancel_email(
     Ok(email
         .from(from.parse().unwrap())
         .to(to.parse().unwrap())
-        .subject("BlueRide Match CANCELED")
+        .subject("A user has left your BlueRide match.")
         .header(ContentType::TEXT_PLAIN)
         .body(content)
         .unwrap())
