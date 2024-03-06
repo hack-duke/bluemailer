@@ -111,10 +111,6 @@ pub async fn handle_queue_request(
     if let Ok(p) = serde_json::from_slice::<BlueRideNotification>(&delivery.data) {
         sentry::configure_scope(|scope| {
             scope.set_transaction(p.trace_id.as_deref());
-            scope.set_user(Some(sentry::User {
-                email: Some(p.target_user.email.clone()),
-                ..Default::default()
-            }));
         });
 
         let e = match p.payload {
