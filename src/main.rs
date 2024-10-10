@@ -11,6 +11,7 @@ use std::process::exit;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
 use crate::tasks::api::handle_queue_request;
+use rustls::crypto::aws_lc_rs;
 
 async fn rabbit_mq(uri: &str) -> Result<(), Box<dyn Error>> {
     let options = ConnectionProperties::default()
@@ -77,6 +78,8 @@ async fn rabbit_mq(uri: &str) -> Result<(), Box<dyn Error>> {
 
 #[tokio::main]
 async fn main() {
+    aws_lc_rs::default_provider().install_default().expect("Failed to install default crypto provider");
+
     let mut filter = LevelFilter::DEBUG;
     if cfg!(debug_assertions) {
         filter = LevelFilter::DEBUG;
